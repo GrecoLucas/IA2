@@ -1,0 +1,120 @@
+===== BASIC INFORMATION of clean ufc (no Missing values)=====
+===== BASIC INFORMATION =====
+
+Dataset Preview:
+           fighter1         fighter2  ... fighter1_Age fighter2_Age
+0   Charles Johnson  Ramazan Temirov  ...         34.0         28.0
+1        Andrea Lee       JJ Aldrich  ...         36.0         32.0
+2  Erin Blanchfield       JJ Aldrich  ...         25.0         32.0
+3       Danny Silva    Lucas Almeida  ...         28.0         34.0
+4     Ricardo Ramos   Chepe Mariscal  ...         29.0         32.0
+
+[5 rows x 37 columns]
+
+Column Names:
+['fighter1', 'fighter2', 'event', 'fight_outcome', 'origin_fight_url', 'fighter1_Weight', 'fighter1_Reach', 'fighter1_Stance', 'fighter1_SLpM', 'fighter1_StrAcc', 'fighter1_SApM', 'fighter1_StrDef', 'fighter1_TDAvg', 'fighter1_TDAcc', 'fighter1_TDDef', 'fighter1_SubAvg', 'fighter2_Weight', 'fighter2_Reach', 'fighter2_Stance', 'fighter2_SLpM', 'fighter2_StrAcc', 'fighter2_SApM', 'fighter2_StrDef', 'fighter2_TDAvg', 'fighter2_TDAcc', 'fighter2_TDDef', 'fighter2_SubAvg', 'fighter1_Wins', 'fighter1_Losses', 'fighter1_Draws', 'fighter2_Wins', 'fighter2_Losses', 'fighter2_Draws', 'fighter1_Height_in', 'fighter2_Height_in', 'fighter1_Age', 'fighter2_Age']
+
+Data Types:
+fighter1               object
+fighter2               object
+event                  object
+fight_outcome          object
+origin_fight_url       object
+fighter1_Weight       float64
+fighter1_Reach          int64
+fighter1_Stance        object
+fighter1_SLpM         float64
+fighter1_StrAcc         int64
+fighter1_SApM         float64
+fighter1_StrDef         int64
+fighter1_TDAvg        float64
+fighter1_TDAcc          int64
+fighter1_TDDef          int64
+fighter1_SubAvg       float64
+fighter2_Weight       float64
+fighter2_Reach          int64
+fighter2_Stance        object
+fighter2_SLpM         float64
+fighter2_StrAcc         int64
+fighter2_SApM         float64
+fighter2_StrDef         int64
+fighter2_TDAvg        float64
+fighter2_TDAcc          int64
+fighter2_TDDef          int64
+fighter2_SubAvg       float64
+fighter1_Wins           int64
+fighter1_Losses         int64
+fighter1_Draws          int64
+fighter2_Wins           int64
+fighter2_Losses         int64
+fighter2_Draws          int64
+fighter1_Height_in    float64
+fighter2_Height_in    float64
+fighter1_Age          float64
+fighter2_Age          float64
+dtype: object
+
+===== MISSING VALUES =====
+Empty DataFrame
+Columns: [Missing Values, Percentage]
+Index: []
+
+===== STATISTICAL SUMMARY =====
+       fighter1_Weight  fighter1_Reach  fighter1_SLpM  ...  fighter2_Height_in  fighter1_Age  fighter2_Age
+count      6855.000000     6855.000000    6855.000000  ...         6855.000000   6855.000000   6855.000000
+mean        165.720058       72.036032       3.602988  ...           70.157257     37.969511     37.447702
+std          35.161729        4.352804       1.223633  ...            3.556794      5.835712      5.879306
+min         115.000000       58.000000       0.150000  ...           60.000000     20.000000     22.000000
+25%         135.000000       69.000000       2.745000  ...           68.000000     34.000000     33.000000
+50%         155.000000       72.000000       3.450000  ...           70.000000     38.000000     37.000000
+75%         185.000000       75.000000       4.360000  ...           73.000000     42.000000     41.000000
+max         265.000000       84.000000      11.230000  ...           83.000000     61.000000     61.000000
+
+[8 rows x 30 columns]
+
+===== FIGHT OUTCOME DISTRIBUTION =====
+Fight Outcome Distribution:
+fight_outcome
+fighter1    4207
+fighter2    2648
+Name: count, dtype: int64
+
+===== EVENT DISTRIBUTION =====
+Top 10 Events by Number of Fights:
+event
+UFC 259: Blachowicz vs. Adesanya         15
+UFC 283: Teixeira vs. Hill               15
+UFC Fight Night: Aspinall vs. Tybura     15
+UFC Fight Night: Poirier vs. Gaethje     14
+UFC 310: Pantoja vs. Asakura             14
+UFC Fight Night: Cannonier vs. Imavov    14
+UFC 304: Edwards vs. Muhammad 2          14
+UFC Fight Night: Whittaker vs. Till      14
+UFC 299: O'Malley vs. Vera 2             14
+UFC Fight Night: Blaydes vs. Aspinall    14
+Name: count, dtype: int64
+
+===== FIGHTER AGE DISTRIBUTION =====
+
+===== FIGHTER STANCE DISTRIBUTION =====
+
+===== CORRELATION ANALYSIS =====
+
+Highly Correlated Feature Pairs (abs > 0.7):
+fighter1_Weight     fighter2_Weight       0.948935
+fighter1_Reach      fighter1_Height_in    0.899060
+fighter2_Height_in  fighter2_Reach        0.896343
+fighter1_Weight     fighter1_Height_in    0.808960
+fighter2_Weight     fighter2_Height_in    0.803937
+fighter1_Height_in  fighter2_Weight       0.788835
+fighter1_Weight     fighter2_Height_in    0.782336
+fighter1_Reach      fighter1_Weight       0.782336
+fighter2_Reach      fighter2_Weight       0.778970
+fighter1_Reach      fighter2_Weight       0.761490
+fighter1_Weight     fighter2_Reach        0.755374
+fighter1_Height_in  fighter2_Height_in    0.754202
+fighter2_Reach      fighter1_Height_in    0.732550
+fighter2_Height_in  fighter1_Reach        0.729944
+fighter2_Reach      fighter1_Reach        0.712377
+dtype: float64
+
