@@ -186,9 +186,9 @@ def create_model(type, df, test_size, neighbors):
     X = df[feature_cols + stance_cols]
     y = df['target']
     # Split the data in 2: One set for training and one set for testing
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=7)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
     if(type == "decisionTree"):
-        model = DecisionTreeClassifier(random_state=7)
+        model = DecisionTreeClassifier()
     if(type == "K-nearestNeighbors"):
         model = KNeighborsClassifier(n_neighbors=neighbors)
 
@@ -199,39 +199,173 @@ def create_model(type, df, test_size, neighbors):
 
 
 def test_model(model, X_test, y_test):
+    start = time.time()
     # Try to predict using the test data set
     y_pred = model.predict(X_test)
-
+    end = time.time()
     # Evaluate the performance of the model
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     conf_matrix = confusion_matrix(y_test, y_pred)
-
+    t = end - start
     # Print results
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"Precision: {precision:.4f}")
-    print(f"Recall: {recall:.4f}")
-    print(f"F1 Score: {f1:.4f}")
-    print("Confusion Matrix:")
-    print(conf_matrix)
+    #print(f"Accuracy: {accuracy:.4f}")
+    #print(f"Precision: {precision:.4f}")
+    #print(f"Recall: {recall:.4f}")
+    #print(f"F1 Score: {f1:.4f}")
+    #print("Confusion Matrix:")
+    #print(conf_matrix)
 
     # Plot the confusion matrix
-    plt.figure(figsize=(6, 6))
-    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=['Fighter2', 'Fighter1'], yticklabels=['Fighter2', 'Fighter1'])
-    plt.title('Confusion Matrix')
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
-    plt.savefig(os.path.join("../output/", 'confusion_matrix.png'))
+    #plt.figure(figsize=(6, 6))
+    #sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=['Fighter2', 'Fighter1'], yticklabels=['Fighter2', 'Fighter1'])
+    #plt.title('Confusion Matrix')
+    #plt.xlabel('Predicted')
+    #plt.ylabel('Actual')
+    #plt.savefig(os.path.join("../output/", 'confusion_matrix.png'))
+    return accuracy, precision, recall, f1, t
+
+def make_graph_decision_tree(measure, xAxis, yAxis):
+    plt.figure(figsize=(8, 8))
+    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='b')
+    plt.title(f'Efects of training data size in {measure}')
+    plt.xlabel('Percentage of Data used for Testing')
+    plt.ylabel(f'{measure}')
+    plt.grid(True)
+    plt.xticks(xAxis)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  # Porque as medidas vão de 0 a 1
+    plt.savefig(os.path.join("../output/", f'{measure}_decision_trees.png'))
+
+def make_graph_k_neighbors(measure, xAxis, yAxis):
+    plt.figure(figsize=(8, 8))
+    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='b')
+    plt.title(f'Efects of number of neighbors in {measure}')
+    plt.xlabel('Number of Neighbors')
+    plt.ylabel(f'{measure}')
+    plt.grid(True)
+    plt.xticks(xAxis)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  # Porque as medidas vão de 0 a 1
+    plt.savefig(os.path.join("../output/", f'{measure}_number_neighbors.png'))
+
+def make_graph_models(measure, models, yAxis):
+    plt.figure(figsize=(8, 8))
+    plt.bar(models, yAxis, color='b')
+    plt.title(f'Comparison between models: {measure}')
+    plt.xlabel('Model')
+    plt.ylabel(f'{measure}')
+    plt.grid(True, axis='y') 
+    plt.xticks(models)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  # Porque as medidas vão de 0 a 1
+    plt.savefig(os.path.join("../output/", f'{measure}_models.png'))
+
+def compare_decision_tree(df):
+    # Inside Decision Trees we can only change the splitting of data sets
+    accuracy = []
+    precision = []
+    recall = []
+    f1 = []
+    train_time = []
+    test_time = []
+    for i in range(9, 0, -1):
+        start = time.time()
+        model, X_test, y_test = create_model("decisionTree", df, i/10, 0)
+        end = time.time()
+        train_time += [end-start]
+        acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
+        accuracy += [acc]
+        precision += [prec]
+        recall += [rec]
+        f1 += [f1_]
+        test_time += [time_]
+    train_sizes = [x/10 for x in range(9,0,-1)]
+    make_graph_decision_tree("Accuracy", train_sizes, accuracy)
+    make_graph_decision_tree("Precision", train_sizes, precision)
+    make_graph_decision_tree("Recall", train_sizes, recall)
+    make_graph_decision_tree("F1 Score", train_sizes, f1)
+    make_graph_decision_tree("Training Time", train_sizes, train_time)
+    make_graph_decision_tree("Testing Time", train_sizes, test_time)
+
+def compare_k_nearest_neighbors(df):
+    # Inside Decision Trees we can only change the splitting of data sets
+    accuracy = []
+    precision = []
+    recall = []
+    f1 = []
+    train_time = []
+    test_time = []
+    for i in range(1, 31, 1):
+        start = time.time()
+        model, X_test, y_test = create_model("K-nearestNeighbors", df, 0.1, i)
+        end = time.time()
+        train_time += [end-start]
+        acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
+        accuracy += [acc]
+        precision += [prec]
+        recall += [rec]
+        f1 += [f1_]
+        test_time += [time_]
+    num_neigs = [x for x in range(1,31,1)]
+    make_graph_k_neighbors("Accuracy", num_neigs, accuracy)
+    make_graph_k_neighbors("Precision", num_neigs, precision)
+    make_graph_k_neighbors("Recall", num_neigs, recall)
+    make_graph_k_neighbors("F1 Score", num_neigs, f1)
+    make_graph_k_neighbors("Training Time", num_neigs, train_time)
+    make_graph_k_neighbors("Testing Time", num_neigs, test_time)
+
+
+def compare_models(df, n_neighbors):
+    accuracy = []
+    precision = []
+    recall = []
+    f1 = []
+    train_time = []
+    test_time = []
+    models = ["decisionTree","K-nearestNeighbors"]
+    for i in models:
+        acc_model = []
+        prec_model= []
+        recall_model = []
+        f1_model = []
+        train_time_model = []
+        test_time_model = []
+        for j in range(10):
+            start = time.time()
+            model, X_test, y_test = create_model(i, df, 0.1, n_neighbors)
+            end = time.time()
+            train_time_model += [end-start]
+            acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
+            acc_model += [acc]
+            prec_model += [prec]
+            recall_model += [rec]
+            f1_model += [f1_]
+            test_time_model += [time_]
+        accuracy += [sum(acc_model)/len(acc_model)]
+        precision += [sum(prec_model)/len(prec_model)]
+        recall += [sum(recall_model)/len(recall_model)]
+        f1 += [sum(f1_model)/len(f1_model)]
+        train_time += [sum(train_time_model)/len(train_time_model)]
+        test_time += [sum(test_time_model)/len(test_time_model)]
+    make_graph_models("Accuracy", models, accuracy)
+    make_graph_models("Precision", models, precision)
+    make_graph_models("Recall", models, recall)
+    make_graph_models("F1 Score", models, f1)
+    make_graph_models("Training Time", models, train_time)
+    make_graph_models("Testing Time", models, test_time)
+
 
 
 
 df = pd.read_csv('../assets/clean_ufc_all_fights.csv')
 
-model, X_test, y_test = create_model("decisionTree", df, 0.2, 5)
-test_model(model, X_test, y_test)
-
-model, X_test, y_test = create_model("K-nearestNeighbors", df, 0.2, 5)
-test_model(model, X_test, y_test)
-
+#model, X_test, y_test = create_model("decisionTree", df, 0.2, 5)
+#test_model(model, X_test, y_test)
+#model, X_test, y_test = create_model("K-nearestNeighbors", df, 0.2, 5)
+#test_model(model, X_test, y_test)
+compare_decision_tree(df)
+compare_k_nearest_neighbors(df)
+compare_models(df, 5)
