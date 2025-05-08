@@ -168,7 +168,7 @@ print("RATATATATATAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
 def create_model(type, df, test_size, neighbors):
 
-    # Features: relevant columns with the data used to predict
+    # Features: relevant columns of the data
     feature_cols = ['fighter1_Weight', 'fighter1_Reach','fighter1_SLpM','fighter1_StrAcc','fighter1_SApM',
                         'fighter1_StrDef','fighter1_TDAvg','fighter1_TDAcc','fighter1_TDDef','fighter1_SubAvg',
                         'fighter2_Weight','fighter2_Reach','fighter2_SLpM','fighter2_StrAcc',
@@ -176,34 +176,40 @@ def create_model(type, df, test_size, neighbors):
                         'fighter2_SubAvg','fighter1_Wins','fighter1_Losses','fighter1_Draws','fighter2_Wins',
                         'fighter2_Losses','fighter2_Draws','fighter1_Height_in','fighter2_Height_in','fighter1_Age',
                         'fighter2_Age']
-
+    # Since fighter stance has not integer or float value, we need to replace the column with dummies
     df = pd.get_dummies(df, columns=['fighter1_Stance', 'fighter2_Stance'])
+    # The target column (the one we want to predict) is which fighter won the fight, if fighter1 won, target = 1, else target = 0 (assuming no draws)
     df['target'] = df['fight_outcome'].apply(lambda x: 1 if x == 'fighter1' else (0 if x == 'fighter2' else np.nan))
     df = df.dropna(subset=['target'])
     stance_cols = [col for col in df.columns if col.startswith('fighter1_Stance_') or col.startswith('fighter2_Stance_')]
+    # X axis are the feature columnss and Y axis is the target
     X = df[feature_cols + stance_cols]
     y = df['target']
+    # Split the data in 2: One set for training and one set for testing
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=7)
     if(type == "decisionTree"):
         model = DecisionTreeClassifier(random_state=7)
     if(type == "K-nearestNeighbors"):
         model = KNeighborsClassifier(n_neighbors=neighbors)
+
+    # Perform the trainig of the model using the train data sets
+
     model.fit(X_train, y_train)
     return model, X_test, y_test
 
 
 def test_model(model, X_test, y_test):
-    # Make predictions on the test set
+    # Try to predict using the test data set
     y_pred = model.predict(X_test)
 
-    # Evaluate the model's performance
+    # Evaluate the performance of the model
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     conf_matrix = confusion_matrix(y_test, y_pred)
 
-    # Print the results
+    # Print results
     print(f"Accuracy: {accuracy:.4f}")
     print(f"Precision: {precision:.4f}")
     print(f"Recall: {recall:.4f}")
