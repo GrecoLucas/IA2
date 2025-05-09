@@ -6,9 +6,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier
 import os
 
-def create_model(type, df, test_size, neighbors):
+def create_model(type, df, test_size, neighbors, n_estimators=100, random_state=42):
     # Features: relevant columns of the data
     feature_cols = ['fighter1_Weight', 'fighter1_Reach','fighter1_SLpM','fighter1_StrAcc','fighter1_SApM',
                     'fighter1_StrDef','fighter1_TDAvg','fighter1_TDAcc','fighter1_TDDef','fighter1_SubAvg',
@@ -30,12 +31,12 @@ def create_model(type, df, test_size, neighbors):
     if(type == "decisionTree"):
         model = DecisionTreeClassifier()
     if(type == "K-nearestNeighbors"):
-        model = KNeighborsClassifier(n_neighbors=neighbors)
-
+        model = KNeighborsClassifier(neighbors)
+    if(type == "randomForest"):
+        model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
 
     model.fit(X_train, y_train)
     return model, X_test, y_test
-
 
 def test_model(model, X_test, y_test):
     start = time.time()
@@ -50,7 +51,6 @@ def test_model(model, X_test, y_test):
     t = end - start
     return accuracy, precision, recall, f1, t
 
-
 def make_graph_decision_tree(measure, xAxis, yAxis, output_dir):
     """Create a graph showing the effect of test size proportion on model performance."""
     plt.figure(figsize=(8, 8))
@@ -63,7 +63,7 @@ def make_graph_decision_tree(measure, xAxis, yAxis, output_dir):
 
     plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
     plt.savefig(os.path.join(output_dir, f'{measure}_decision_trees.png'))
-
+    plt.close()
 
 def make_graph_k_neighbors(measure, xAxis, yAxis, output_dir):
     """Create a graph showing the effect of number of neighbors on model performance."""
@@ -78,7 +78,6 @@ def make_graph_k_neighbors(measure, xAxis, yAxis, output_dir):
     plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
     plt.savefig(os.path.join(output_dir, f'{measure}_number_neighbors.png'))
 
-
 def make_graph_models(measure, models, yAxis, output_dir):
     """Create a graph comparing different models."""
     plt.figure(figsize=(8, 8))
@@ -91,7 +90,6 @@ def make_graph_models(measure, models, yAxis, output_dir):
 
     plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
     plt.savefig(os.path.join(output_dir, f'{measure}_models.png'))
-
 
 def compare_decision_tree(df, output_dir):
     accuracy = []
@@ -132,7 +130,6 @@ def compare_decision_tree(df, output_dir):
     make_graph_decision_tree("F1 Score", train_sizes, f1, output_dir)
     make_graph_decision_tree("Training Time", train_sizes, train_time, output_dir)
     make_graph_decision_tree("Testing Time", train_sizes, test_time, output_dir)
-
 
 def compare_k_nearest_neighbors(df, output_dir):
     """
@@ -192,15 +189,77 @@ def compare_k_nearest_neighbors(df, output_dir):
     make_graph_k_neighbors("Training Time", num_neigs, train_time, output_dir)
     make_graph_k_neighbors("Testing Time", num_neigs, test_time, output_dir)
 
-
-def compare_models(df, n_neighbors, output_dir):
+def compare_random_forest(df, output_dir):
     accuracy = []
     precision = []
     recall = []
     f1 = []
     train_time = []
     test_time = []
-    models = ["decisionTree","K-nearestNeighbors"]
+    n_estimators_values = [10, 50, 100, 150, 200]
+    
+    for n_estimators in n_estimators_values:
+        start = time.time()
+        model, X_test, y_test = create_model("randomForest", df, 0.1, 0, n_estimators=n_estimators)
+        end = time.time()
+        train_time += [end-start]
+        acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
+        accuracy += [acc]
+        precision += [prec]
+        recall += [rec]
+        f1 += [f1_]
+        test_time += [time_]
+    
+    # Imprime os resultados no terminal
+    print("\n----- RESULTADOS DO RANDOM FOREST POR NÚMERO DE ESTIMADORES -----")
+    results_df = pd.DataFrame({
+        'N Estimators': n_estimators_values,
+        'Accuracy': accuracy,
+        'Precision': precision,
+        'Recall': recall,
+        'F1 Score': f1,
+        'Training Time': train_time,
+        'Testing Time': test_time
+    })
+    print(results_df.round(4))
+    
+    # Encontra e exibe o melhor número de estimadores
+    best_n_idx = np.argmax(accuracy)
+    print(f"\nMelhor número de estimadores: {n_estimators_values[best_n_idx]}")
+    print(f"Acurácia máxima: {accuracy[best_n_idx]:.4f}")
+    print(f"Precisão: {precision[best_n_idx]:.4f}")
+    print(f"Recall: {recall[best_n_idx]:.4f}")
+    print(f"F1 Score: {f1[best_n_idx]:.4f}")
+    
+    # Cria gráficos
+    make_graph_random_forest("Accuracy", n_estimators_values, accuracy, output_dir)
+    make_graph_random_forest("Precision", n_estimators_values, precision, output_dir)
+    make_graph_random_forest("Recall", n_estimators_values, recall, output_dir)
+    make_graph_random_forest("F1 Score", n_estimators_values, f1, output_dir)
+    make_graph_random_forest("Training Time", n_estimators_values, train_time, output_dir)
+    make_graph_random_forest("Testing Time", n_estimators_values, test_time, output_dir)
+
+def make_graph_random_forest(measure, xAxis, yAxis, output_dir):
+    """Create a graph showing the effect of number of estimators on RF performance."""
+    plt.figure(figsize=(8, 8))
+    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='b')
+    plt.title(f'Efeitos do número de estimadores em {measure}')
+    plt.xlabel('Número de Estimadores')
+    plt.ylabel(f'{measure}')
+    plt.grid(True)
+    plt.xticks(xAxis)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
+    plt.savefig(os.path.join(output_dir, f'{measure}_random_forest.png'))
+
+def compare_models(df, n_neighbors, output_dir, n_estimators=100):
+    accuracy = []
+    precision = []
+    recall = []
+    f1 = []
+    train_time = []
+    test_time = []
+    models = ["decisionTree","K-nearestNeighbors", "randomForest"]
     for i in models:
         acc_model = []
         prec_model= []
@@ -210,7 +269,7 @@ def compare_models(df, n_neighbors, output_dir):
         test_time_model = []
         for j in range(10):
             start = time.time()
-            model, X_test, y_test = create_model(i, df, 0.1, n_neighbors)
+            model, X_test, y_test = create_model(i, df, 0.1, n_neighbors, n_estimators=n_estimators)
             end = time.time()
             train_time_model += [end-start]
             acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
@@ -227,7 +286,7 @@ def compare_models(df, n_neighbors, output_dir):
         test_time += [sum(test_time_model)/len(test_time_model)]
     
     # Imprimir resultados da comparação no terminal
-    print("\n----- COMPARISON BETWEEN DECISION TREE AND KNN -----")
+    print("\n----- COMPARAÇÃO ENTRE DECISION TREE, KNN E RANDOM FOREST -----")
     results_df = pd.DataFrame({
         'Model': models,
         'Accuracy': accuracy,
@@ -242,16 +301,14 @@ def compare_models(df, n_neighbors, output_dir):
     # Identificar e imprimir o melhor modelo
     best_model_idx = np.argmax(accuracy)
     print(f"\nMelhor modelo: {models[best_model_idx]}")
-    print(f"Diferença de acurácia: {abs(accuracy[0] - accuracy[1]):.4f}")
-    print(f"Diferença de tempo de treinamento: {abs(train_time[0] - train_time[1]):.4f} segundos")
-    
+    print(f"Acurácia do melhor modelo: {accuracy[best_model_idx]:.4f}")
+
     make_graph_models("Accuracy", models, accuracy, output_dir)
     make_graph_models("Precision", models, precision, output_dir)
     make_graph_models("Recall", models, recall, output_dir)
     make_graph_models("F1 Score", models, f1, output_dir)
     make_graph_models("Training Time", models, train_time, output_dir)
     make_graph_models("Testing Time", models, test_time, output_dir)
-
 
 def run_model_comparisons(df, output_dir):
     """
@@ -261,13 +318,31 @@ def run_model_comparisons(df, output_dir):
         df (DataFrame): Dataset containing UFC fights
         output_dir (str): Directory to save output graphs
     """
-    print("\n===== COMPARING DECISION TREE MODELS =====")
-    compare_decision_tree(df, output_dir)
+    # Criar subdiretórios para cada modelo
+    decision_tree_dir = os.path.join(output_dir, "decision_tree")
+    knn_dir = os.path.join(output_dir, "knn")
+    random_forest_dir = os.path.join(output_dir, "random_forest")
+    comparison_dir = os.path.join(output_dir, "model_comparison")
     
-    print("\n===== COMPARING K-NEAREST NEIGHBORS MODELS =====")
-    compare_k_nearest_neighbors(df, output_dir)
+    # Criar diretórios se não existirem
+    for directory in [decision_tree_dir, knn_dir, random_forest_dir, comparison_dir]:
+        os.makedirs(directory, exist_ok=True)
     
-    print("\n===== COMPARING DIFFERENT MODEL TYPES =====")
-    compare_models(df, 5, output_dir)
+    print("\n===== COMPARANDO MODELOS DECISION TREE =====")
+    compare_decision_tree(df, decision_tree_dir)
     
-    print("\nModel comparison complete. Plots saved in the output directory.")
+    print("\n===== COMPARANDO MODELOS K-NEAREST NEIGHBORS =====")
+    compare_k_nearest_neighbors(df, knn_dir)
+    
+    print("\n===== COMPARANDO MODELOS RANDOM FOREST =====")
+    compare_random_forest(df, random_forest_dir)
+    
+    print("\n===== COMPARANDO DIFERENTES TIPOS DE MODELOS =====")
+    # Use o melhor n_neighbors encontrado para KNN e melhor n_estimators para RF
+    compare_models(df, 5, comparison_dir, n_estimators=100)
+    
+    print("\nComparação de modelos completa. Gráficos salvos em subdiretórios:")
+    print(f"- Árvore de decisão: {decision_tree_dir}")
+    print(f"- KNN: {knn_dir}")
+    print(f"- Random Forest: {random_forest_dir}")
+    print(f"- Comparação entre modelos: {comparison_dir}")
