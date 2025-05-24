@@ -5,11 +5,13 @@ import time
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
 import os
 
-def create_model(type, df, test_size, neighbors, n_estimators=100, random_state=42):
+def create_model(type, df, test_size, neighbors, n_estimators=100, c_value=1.0, random_state=42):
     # Features: relevant columns of the data
     feature_cols = ['fighter1_Weight', 'fighter1_Reach','fighter1_SLpM','fighter1_StrAcc','fighter1_SApM',
                     'fighter1_StrDef','fighter1_TDAvg','fighter1_TDAcc','fighter1_TDDef','fighter1_SubAvg',
@@ -18,29 +20,41 @@ def create_model(type, df, test_size, neighbors, n_estimators=100, random_state=
                     'fighter2_SubAvg','fighter1_Wins','fighter1_Losses','fighter1_Draws','fighter2_Wins',
                     'fighter2_Losses','fighter2_Draws','fighter1_Height_in','fighter2_Height_in','fighter1_Age',
                     'fighter2_Age']
+    
+    df = df.copy()
     df = pd.get_dummies(df, columns=['fighter1_Stance', 'fighter2_Stance'])
 
     df['target'] = df['fight_outcome'].apply(lambda x: 1 if x == 'fighter1' else (0 if x == 'fighter2' else np.nan))
     df = df.dropna(subset=['target'])
+    
     stance_cols = [col for col in df.columns if col.startswith('fighter1_Stance_') or col.startswith('fighter2_Stance_')]
 
     X = df[feature_cols + stance_cols]
     y = df['target']
+    
+    X = X.fillna(X.median())
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    
     if(type == "decisionTree"):
-        model = DecisionTreeClassifier()
-    if(type == "K-nearestNeighbors"):
+        model = DecisionTreeClassifier(random_state=random_state)
+    elif(type == "K-nearestNeighbors"):
         model = KNeighborsClassifier(neighbors)
-    if(type == "randomForest"):
+    elif(type == "randomForest"):
         model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
+    elif(type == "svm"):
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
+        model = SVC(C=c_value, kernel='rbf', random_state=random_state)
+        model.fit(X_train, y_train)
+        return model, X_test, y_test, scaler
 
     model.fit(X_train, y_train)
     return model, X_test, y_test
 
 def test_model(model, X_test, y_test):
     start = time.time()
-
     y_pred = model.predict(X_test)
     end = time.time()
 
@@ -77,6 +91,7 @@ def make_graph_k_neighbors(measure, xAxis, yAxis, output_dir):
 
     plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
     plt.savefig(os.path.join(output_dir, f'{measure}_number_neighbors.png'))
+    plt.close()
 
 def make_graph_models(measure, models, yAxis, output_dir):
     """Create a graph comparing different models."""
@@ -90,6 +105,35 @@ def make_graph_models(measure, models, yAxis, output_dir):
 
     plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
     plt.savefig(os.path.join(output_dir, f'{measure}_models.png'))
+    plt.close()
+
+def make_graph_random_forest(measure, xAxis, yAxis, output_dir):
+    """Create a graph showing the effect of number of estimators on RF performance."""
+    plt.figure(figsize=(8, 8))
+    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='g')
+    plt.title(f'Efeitos do número de estimadores em {measure}')
+    plt.xlabel('Número de Estimadores')
+    plt.ylabel(f'{measure}')
+    plt.grid(True)
+    plt.xticks(xAxis)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
+    plt.savefig(os.path.join(output_dir, f'{measure}_random_forest.png'))
+    plt.close()
+
+def make_graph_svm(measure, xAxis, yAxis, output_dir):
+    """Create a graph showing the effect of C parameter on SVM performance."""
+    plt.figure(figsize=(8, 8))
+    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='r')
+    plt.title(f'Efeitos do parâmetro C em {measure} (SVM)')
+    plt.xlabel('Valor do Parâmetro C')
+    plt.ylabel(f'{measure}')
+    plt.xscale('log') 
+    plt.grid(True)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
+    plt.savefig(os.path.join(output_dir, f'{measure}_svm.png'))
+    plt.close()
 
 def compare_decision_tree(df, output_dir):
     accuracy = []
@@ -239,37 +283,83 @@ def compare_random_forest(df, output_dir):
     make_graph_random_forest("Training Time", n_estimators_values, train_time, output_dir)
     make_graph_random_forest("Testing Time", n_estimators_values, test_time, output_dir)
 
-def make_graph_random_forest(measure, xAxis, yAxis, output_dir):
-    """Create a graph showing the effect of number of estimators on RF performance."""
-    plt.figure(figsize=(8, 8))
-    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='b')
-    plt.title(f'Efeitos do número de estimadores em {measure}')
-    plt.xlabel('Número de Estimadores')
-    plt.ylabel(f'{measure}')
-    plt.grid(True)
-    plt.xticks(xAxis)
-
-    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
-    plt.savefig(os.path.join(output_dir, f'{measure}_random_forest.png'))
-
-def compare_models(df, n_neighbors, output_dir, n_estimators=100):
+def compare_svm(df, output_dir):
+    """Compare SVM performance with different C values."""
     accuracy = []
     precision = []
     recall = []
     f1 = []
     train_time = []
     test_time = []
-    models = ["decisionTree","K-nearestNeighbors", "randomForest"]
+    c_values = [0.1, 0.5, 1, 5, 10, 100]
+    
+    for c in c_values:
+        start = time.time()
+        result = create_model("svm", df, 0.1, 0, c_value=c)
+        if len(result) == 4: 
+            model, X_test, y_test, scaler = result
+        else:
+            model, X_test, y_test = result
+        end = time.time()
+        train_time += [end-start]
+        acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
+        accuracy += [acc]
+        precision += [prec]
+        recall += [rec]
+        f1 += [f1_]
+        test_time += [time_]
+    
+    print("\n----- SVM RESULTS BY C VALUE -----")
+    results_df = pd.DataFrame({
+        'C Value': c_values,
+        'Accuracy': accuracy,
+        'Precision': precision,
+        'Recall': recall,
+        'F1 Score': f1,
+        'Training Time': train_time,
+        'Testing Time': test_time
+    })
+    print(results_df.round(4))
+    
+    best_c_idx = np.argmax(accuracy)
+    print(f"\nMelhor valor de C: {c_values[best_c_idx]}")
+    print(f"Acurácia máxima: {accuracy[best_c_idx]:.4f}")
+    print(f"Precisão: {precision[best_c_idx]:.4f}")
+    print(f"Recall: {recall[best_c_idx]:.4f}")
+    print(f"F1 Score: {f1[best_c_idx]:.4f}")
+    
+    # Cria gráficos
+    make_graph_svm("Accuracy", c_values, accuracy, output_dir)
+    make_graph_svm("Precision", c_values, precision, output_dir)
+    make_graph_svm("Recall", c_values, recall, output_dir)
+    make_graph_svm("F1 Score", c_values, f1, output_dir)
+    make_graph_svm("Training Time", c_values, train_time, output_dir)
+    make_graph_svm("Testing Time", c_values, test_time, output_dir)
+
+def compare_models(df, n_neighbors, output_dir, n_estimators=100, c_value=1.0):
+    accuracy = []
+    precision = []
+    recall = []
+    f1 = []
+    train_time = []
+    test_time = []
+    models = ["decisionTree","K-nearestNeighbors", "randomForest", "svm"]
+    
     for i in models:
         acc_model = []
-        prec_model= []
+        prec_model = []
         recall_model = []
         f1_model = []
         train_time_model = []
         test_time_model = []
+        
         for j in range(10):
             start = time.time()
-            model, X_test, y_test = create_model(i, df, 0.1, n_neighbors, n_estimators=n_estimators)
+            result = create_model(i, df, 0.1, n_neighbors, n_estimators=n_estimators, c_value=c_value)
+            if len(result) == 4:
+                model, X_test, y_test, scaler = result
+            else:
+                model, X_test, y_test = result
             end = time.time()
             train_time_model += [end-start]
             acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
@@ -278,6 +368,7 @@ def compare_models(df, n_neighbors, output_dir, n_estimators=100):
             recall_model += [rec]
             f1_model += [f1_]
             test_time_model += [time_]
+        
         accuracy += [sum(acc_model)/len(acc_model)]
         precision += [sum(prec_model)/len(prec_model)]
         recall += [sum(recall_model)/len(recall_model)]
@@ -286,7 +377,7 @@ def compare_models(df, n_neighbors, output_dir, n_estimators=100):
         test_time += [sum(test_time_model)/len(test_time_model)]
     
     # Imprimir resultados da comparação no terminal
-    print("\n----- COMPARAÇÃO ENTRE DECISION TREE, KNN E RANDOM FOREST -----")
+    print("\n----- COMPARAÇÃO ENTRE DECISION TREE, KNN, RANDOM FOREST E SVM -----")
     results_df = pd.DataFrame({
         'Model': models,
         'Accuracy': accuracy,
@@ -322,10 +413,11 @@ def run_model_comparisons(df, output_dir):
     decision_tree_dir = os.path.join(output_dir, "decision_tree")
     knn_dir = os.path.join(output_dir, "knn")
     random_forest_dir = os.path.join(output_dir, "random_forest")
+    svm_dir = os.path.join(output_dir, "svm")
     comparison_dir = os.path.join(output_dir, "model_comparison")
     
     # Criar diretórios se não existirem
-    for directory in [decision_tree_dir, knn_dir, random_forest_dir, comparison_dir]:
+    for directory in [decision_tree_dir, knn_dir, random_forest_dir, svm_dir, comparison_dir]:
         os.makedirs(directory, exist_ok=True)
     
     print("\n===== COMPARANDO MODELOS DECISION TREE =====")
@@ -337,12 +429,16 @@ def run_model_comparisons(df, output_dir):
     print("\n===== COMPARANDO MODELOS RANDOM FOREST =====")
     compare_random_forest(df, random_forest_dir)
     
+    print("\n===== COMPARANDO MODELOS SVM =====")
+    compare_svm(df, svm_dir)
+    
     print("\n===== COMPARANDO DIFERENTES TIPOS DE MODELOS =====")
-    # Use o melhor n_neighbors encontrado para KNN e melhor n_estimators para RF
-    compare_models(df, 5, comparison_dir, n_estimators=100)
+    # Use os melhores parâmetros encontrados
+    compare_models(df, 5, comparison_dir, n_estimators=100, c_value=10)
     
     print("\nComparação de modelos completa. Gráficos salvos em subdiretórios:")
     print(f"- Árvore de decisão: {decision_tree_dir}")
     print(f"- KNN: {knn_dir}")
     print(f"- Random Forest: {random_forest_dir}")
+    print(f"- SVM: {svm_dir}")
     print(f"- Comparação entre modelos: {comparison_dir}")
