@@ -8,6 +8,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.ensemble import RandomForestClassifier
 import os
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import StackingClassifier
+
 
 def create_model(type, df, test_size, neighbors, n_estimators=100, random_state=42):
     # Features: relevant columns of the data
@@ -34,6 +37,18 @@ def create_model(type, df, test_size, neighbors, n_estimators=100, random_state=
         model = KNeighborsClassifier(neighbors)
     if(type == "randomForest"):
         model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
+    if type == "gradientBoosting":
+        model = GradientBoostingClassifier(n_estimators=n_estimators, random_state=random_state)
+    
+    if type == "stacking":
+        estimators = [
+            ('rf', RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)),
+            ('knn', KNeighborsClassifier(neighbors)),
+            ('dt', DecisionTreeClassifier())
+        ]
+        final_estimator = GradientBoostingClassifier(n_estimators=n_estimators, random_state=random_state)
+        model = StackingClassifier(estimators=estimators, final_estimator=final_estimator, passthrough=True)
+
 
     model.fit(X_train, y_train)
     return model, X_test, y_test
@@ -50,6 +65,7 @@ def test_model(model, X_test, y_test):
     f1 = f1_score(y_test, y_pred)
     t = end - start
     return accuracy, precision, recall, f1, t
+
 
 def make_graph_decision_tree(measure, xAxis, yAxis, output_dir):
     """Create a graph showing the effect of test size proportion on model performance."""
@@ -239,6 +255,80 @@ def compare_random_forest(df, output_dir):
     make_graph_random_forest("Training Time", n_estimators_values, train_time, output_dir)
     make_graph_random_forest("Testing Time", n_estimators_values, test_time, output_dir)
 
+def compare_gradient_boosting(df, output_dir):
+    accuracy, precision, recall, f1, train_time, test_time = [], [], [], [], [], []
+    n_estimators_values = [10, 50, 100, 150, 200]
+
+    for n_estimators in n_estimators_values:
+        start = time.time()
+        model, X_test, y_test = create_model("gradientBoosting", df, 0.1, 0, n_estimators=n_estimators)
+        end = time.time()
+        train_time.append(end - start)
+        acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
+        accuracy.append(acc)
+        precision.append(prec)
+        recall.append(rec)
+        f1.append(f1_)
+        test_time.append(time_)
+
+    # Print summary
+    print("\n----- GRADIENT BOOSTING RESULTS BY N ESTIMATORS -----")
+    results_df = pd.DataFrame({
+        'N Estimators': n_estimators_values,
+        'Accuracy': accuracy,
+        'Precision': precision,
+        'Recall': recall,
+        'F1 Score': f1,
+        'Training Time': train_time,
+        'Testing Time': test_time
+    })
+    print(results_df.round(4))
+
+    # Create graphs
+    make_graph_gradient_boost("Accuracy", n_estimators_values, accuracy, output_dir)
+    make_graph_gradient_boost("Precision", n_estimators_values, precision, output_dir)
+    make_graph_gradient_boost("Recall", n_estimators_values, recall, output_dir)
+    make_graph_gradient_boost("F1 Score", n_estimators_values, f1, output_dir)
+    make_graph_gradient_boost("Training Time", n_estimators_values, train_time, output_dir)
+    make_graph_gradient_boost("Testing Time", n_estimators_values, test_time, output_dir)
+
+def compare_stacking_model(df, output_dir):
+    accuracy, precision, recall, f1, train_time, test_time = [], [], [], [], [], []
+    n_estimators_values = [10, 50, 100, 150, 200]
+
+    for n_estimators in n_estimators_values:
+        start = time.time()
+        model, X_test, y_test = create_model("stacking", df, 0.1, neighbors=5, n_estimators=n_estimators)
+        end = time.time()
+        train_time.append(end - start)
+        acc, prec, rec, f1_, time_ = test_model(model, X_test, y_test)
+        accuracy.append(acc)
+        precision.append(prec)
+        recall.append(rec)
+        f1.append(f1_)
+        test_time.append(time_)
+
+    print("\n----- STACKING MODEL RESULTS BY N ESTIMATORS -----")
+    results_df = pd.DataFrame({
+        'N Estimators': n_estimators_values,
+        'Accuracy': accuracy,
+        'Precision': precision,
+        'Recall': recall,
+        'F1 Score': f1,
+        'Training Time': train_time,
+        'Testing Time': test_time
+    })
+    print(results_df.round(4))
+
+    # Reuse graph function (Gradient Boosting's for now)
+    make_graph_stacking("Accuracy", n_estimators_values, accuracy, output_dir)
+    make_graph_stacking("Precision", n_estimators_values, precision, output_dir)
+    make_graph_stacking("Recall", n_estimators_values, recall, output_dir)
+    make_graph_stacking("F1 Score", n_estimators_values, f1, output_dir)
+    make_graph_stacking("Training Time", n_estimators_values, train_time, output_dir)
+    make_graph_stacking("Testing Time", n_estimators_values, test_time, output_dir)
+
+
 def make_graph_random_forest(measure, xAxis, yAxis, output_dir):
     """Create a graph showing the effect of number of estimators on RF performance."""
     plt.figure(figsize=(8, 8))
@@ -252,6 +342,36 @@ def make_graph_random_forest(measure, xAxis, yAxis, output_dir):
     plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
     plt.savefig(os.path.join(output_dir, f'{measure}_random_forest.png'))
 
+def make_graph_gradient_boost(measure, xAxis, yAxis, output_dir):
+    """Create a graph showing the effect of number of estimators on RF performance."""
+    plt.figure(figsize=(8, 8))
+    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='b')
+    plt.title(f'Efeitos do número de estimadores em {measure}')
+    plt.xlabel('Número de Estimadores')
+    plt.ylabel(f'{measure}')
+    plt.grid(True)
+    plt.xticks(xAxis)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
+    plt.savefig(os.path.join(output_dir, f'{measure}_gradient_boost.png'))
+
+
+def make_graph_stacking(measure, xAxis, yAxis, output_dir):
+    """Create a graph showing the effect of number of estimators on RF performance."""
+    plt.figure(figsize=(8, 8))
+    plt.plot(xAxis, yAxis, marker='o', linestyle='-', color='b')
+    plt.title(f'Efeitos do número de estimadores em {measure}')
+    plt.xlabel('Número de Estimadores')
+    plt.ylabel(f'{measure}')
+    plt.grid(True)
+    plt.xticks(xAxis)
+
+    plt.ylim(max(min(yAxis)-0.05, 0), max(yAxis) + 0.05)  
+    plt.savefig(os.path.join(output_dir, f'{measure}_stacking.png'))
+
+
+
+
 def compare_models(df, n_neighbors, output_dir, n_estimators=100):
     accuracy = []
     precision = []
@@ -259,7 +379,7 @@ def compare_models(df, n_neighbors, output_dir, n_estimators=100):
     f1 = []
     train_time = []
     test_time = []
-    models = ["decisionTree","K-nearestNeighbors", "randomForest"]
+    models = ["decisionTree","K-nearestNeighbors", "randomForest", "gradientBoosting", "stacking"]
     for i in models:
         acc_model = []
         prec_model= []
@@ -322,10 +442,13 @@ def run_model_comparisons(df, output_dir):
     decision_tree_dir = os.path.join(output_dir, "decision_tree")
     knn_dir = os.path.join(output_dir, "knn")
     random_forest_dir = os.path.join(output_dir, "random_forest")
+    gradient_boost_dir = os.path.join(output_dir, "gradient_boost")
+    stacking_dir = os.path.join(output_dir, "stacking")    
     comparison_dir = os.path.join(output_dir, "model_comparison")
-    
+
+
     # Criar diretórios se não existirem
-    for directory in [decision_tree_dir, knn_dir, random_forest_dir, comparison_dir]:
+    for directory in [decision_tree_dir, knn_dir, random_forest_dir, gradient_boost_dir, comparison_dir, stacking_dir]:
         os.makedirs(directory, exist_ok=True)
     
     print("\n===== COMPARANDO MODELOS DECISION TREE =====")
@@ -336,7 +459,13 @@ def run_model_comparisons(df, output_dir):
     
     print("\n===== COMPARANDO MODELOS RANDOM FOREST =====")
     compare_random_forest(df, random_forest_dir)
-    
+
+    print("\n===== COMPARANDO MODELOS GRADIENT BOOSTING =====")
+    compare_gradient_boosting(df, gradient_boost_dir)
+
+    print("\n===== COMPARANDO MODELO STACKING =====")
+    compare_stacking_model(df, stacking_dir)
+
     print("\n===== COMPARANDO DIFERENTES TIPOS DE MODELOS =====")
     # Use o melhor n_neighbors encontrado para KNN e melhor n_estimators para RF
     compare_models(df, 5, comparison_dir, n_estimators=100)
@@ -345,4 +474,6 @@ def run_model_comparisons(df, output_dir):
     print(f"- Árvore de decisão: {decision_tree_dir}")
     print(f"- KNN: {knn_dir}")
     print(f"- Random Forest: {random_forest_dir}")
+    print(f"- Gradient boosting: {gradient_boost_dir}")
+    print(f"- Stacking: {stacking_dir}")
     print(f"- Comparação entre modelos: {comparison_dir}")
