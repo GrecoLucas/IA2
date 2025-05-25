@@ -586,8 +586,8 @@ def compare_models(df, n_neighbors, output_dir, n_estimators=100, c_value=1.0):
     train_time = []
     test_time = []
     cv_scores = []
-    models = ["Decision Tree","K-Nearest Neighbors", "Random Forest", "SVM"]
-    model_types = ["decisionTree","K-nearestNeighbors", "randomForest", "svm"]
+    models = ["Decision Tree","K-Nearest Neighbors", "SVM", "Random Forest"]
+    model_types = ["decisionTree","K-nearestNeighbors", "svm", "randomForest"]
     
     # Prepare data for cross-validation
     feature_cols = ['fighter1_Weight', 'fighter1_Reach','fighter1_SLpM','fighter1_StrAcc','fighter1_SApM',
