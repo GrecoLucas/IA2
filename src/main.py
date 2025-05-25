@@ -6,7 +6,7 @@ from analysis.analysis import load_data, run_complete_analysis
 from models.models import run_model_comparisons
 
 # Opções: "analysis", "model", "both"
-RUN_MODE = "model"  # Altere conforme necessário
+RUN_MODE = "analysis"  # Altere conforme necessário
 
 def main():
     # Definição de caminhos
